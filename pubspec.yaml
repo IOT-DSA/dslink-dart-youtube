@@ -1,0 +1,7 @@
+name: dslink_youtube
+description: YouTube DSLink
+dependencies:
+  dslink:
+    git: https://github.com/IOT-DSA/sdk-dslink-dart.git
+  googleapis: ">=0.8.0 <0.9.0"
+  googleapis_auth: ">=0.2.3+1 <0.3.0"
