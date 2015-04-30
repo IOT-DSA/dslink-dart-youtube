@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:dslink/client.dart";
 import "package:dslink/responder.dart";
 
@@ -50,9 +52,26 @@ main(List<String> args) async {
           "type": "string"
         }
       ]
+    },
+    "Get View Count": {
+      r"$is": "getViewCount",
+      r"$invokable": "read",
+      r"$params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ],
+      r"$columns": [
+        {
+          "name": "views",
+          "type": "int"
+        }
+      ]
     }
   }, profiles: {
-    "getChannelVideos": (String path) => new GetChannelVideosNode(path)
+    "getChannelVideos": (String path) => new GetChannelVideosNode(path),
+    "getViewCount": (String path) => new GetViewCountNode(path)
   });
 
   if (link.link == null) return;
@@ -64,20 +83,30 @@ class GetChannelVideosNode extends SimpleNode {
   GetChannelVideosNode(String path) : super(path);
 
   @override
-  Object onInvoke(Map<String, dynamic> params) {
-    if (params["channel"] == null) return new AsyncTableResult()..close();
+  Future<List<Map<String, dynamic>>> onInvoke(Map<String, dynamic> params) async {
+    if (params["channel"] == null) [];
 
-    var r = new AsyncTableResult();
-    youtube.search.list("snippet,id", channelId: params["channel"], order: "date").then((response) {
-      r.update(response.items.where((it) => it.id.kind == "youtube#video").map((SearchResult it) => {
-        "id": it.id.videoId,
-        "title": it.snippet.title,
-        "description": it.snippet.description,
-        "thumbnail": it.snippet.thumbnails.default_.url,
-        "published": it.snippet.publishedAt.toString()
-      }).toList());
-      r.close();
-    });
-    return r;
+    var response = await youtube.search.list("snippet,id", channelId: params["channel"], order: "date");
+    return response.items.where((it) => it.id.kind == "youtube#video").map((SearchResult it) => {
+      "id": it.id.videoId,
+      "title": it.snippet.title,
+      "description": it.snippet.description,
+      "thumbnail": it.snippet.thumbnails.default_.url,
+      "published": it.snippet.publishedAt.toString()
+    }).toList();
+  }
+}
+
+class GetViewCountNode extends SimpleNode {
+  GetViewCountNode(String path) : super(path);
+
+  @override
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
+    var id = params["id"];
+    if (id == null) return {};
+    VideoListResponse videos = await youtube.videos.list("statistics", id: id);
+    return {
+      "views": videos.items[0].statistics.viewCount
+    };
   }
 }
