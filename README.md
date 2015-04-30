@@ -2,6 +2,10 @@
 
 A DSLink for YouTube.
 
+## Features
+
+- Action to get YouTube Channel Videos
+
 ## Usage
 
 ```bash
