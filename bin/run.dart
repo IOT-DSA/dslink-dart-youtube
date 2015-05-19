@@ -15,7 +15,7 @@ main(List<String> args) async {
   youtube = new YoutubeApi(googleAuthClient);
 
   link = new LinkProvider(args, "YouTube-", command: "run", defaultNodes: {
-    "Get Channel Videos": {
+    "Get_Channel_Videos": {
       r"$is": "getChannelVideos",
       r"$invokable": "read",
       r"$params": [
@@ -53,7 +53,7 @@ main(List<String> args) async {
         }
       ]
     },
-    "Get View Count": {
+    "Get_View_Count": {
       r"$is": "getViewCount",
       r"$invokable": "read",
       r"$params": [
