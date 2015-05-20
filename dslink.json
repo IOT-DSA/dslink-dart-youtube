@@ -1,5 +1,5 @@
 {
-  "name": "youtube",
+  "name": "dslink-dart-youtube",
   "version": "1.0.0",
   "description": "YouTube DSLink",
   "main": "bin/run.dart",
