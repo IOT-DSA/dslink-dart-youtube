@@ -23,6 +23,11 @@ main(List<String> args) async {
         {
           "name": "channel",
           "type": "string"
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "default": 20
         }
       ],
       r"$result": "table",
@@ -57,6 +62,11 @@ main(List<String> args) async {
         {
           "name": "channel",
           "type": "string"
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "default": 20
         }
       ],
       r"$result": "table",
@@ -104,8 +114,14 @@ main(List<String> args) async {
     "getChannelVideos": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
       if (params["channel"] == null) [];
 
-      var response = await youtube.search.list("snippet,id", channelId: params["channel"], order: "date");
-      return response.items.where((it) => it.id.kind == "youtube#video").map((SearchResult it) => {
+      List<SearchResult> results;
+      try {
+        results = await getChannelVideos(params["channel"], params["max"]);
+      } catch (e) {
+        return [];
+      }
+
+      return results.map((SearchResult it) => {
         "id": it.id.videoId,
         "title": it.snippet.title,
         "description": it.snippet.description,
@@ -124,8 +140,14 @@ main(List<String> args) async {
     "getChannelPlaylists": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
       if (params["channel"] == null) [];
 
-      PlaylistListResponse response = await youtube.playlists.list("snippet,id", channelId: params["channel"]);
-      return response.items.map((Playlist it) => {
+      List<Playlist> playlists;
+      try {
+        playlists = await getChannelPlaylists(params["channel"], params["max"]);
+      } catch (e) {
+        return [];
+      }
+
+      return playlists.map((Playlist it) => {
         "id": it.id,
         "title": it.snippet.title,
         "description": it.snippet.description,
@@ -136,4 +158,44 @@ main(List<String> args) async {
   });
 
   link.connect();
+}
+
+Future<List<Playlist>> getChannelPlaylists(String channel, int max) async {
+  if (max == null) max = 0;
+
+  var list = <Playlist>[];
+  PlaylistListResponse response;
+  String pageToken;
+  int currentMax = max;
+  while (true) {
+    response = await youtube.playlists.list("snippet,id", channelId: channel, maxResults: currentMax == 0 ? null : currentMax, pageToken: pageToken);
+    list.addAll(response.items);
+    if ((currentMax == 0 || list.length < max) && response.nextPageToken != null) {
+      currentMax = max == 0 ? 0 : max - list.length;
+      pageToken = response.nextPageToken;
+    } else {
+      break;
+    }
+  }
+  return list;
+}
+
+Future<List<SearchResult>> getChannelVideos(String channel, int max) async {
+  if (max == null) max = 0;
+
+  var list = <SearchResult>[];
+  SearchListResponse response;
+  String pageToken;
+  int currentMax = max;
+  while (true) {
+    response = await youtube.search.list("snippet,id", channelId: channel, maxResults: currentMax == 0 ? null : currentMax, pageToken: pageToken, type: "youtube#video");
+    list.addAll(response.items);
+    if ((currentMax == 0 || list.length < max) && response.nextPageToken != null) {
+      currentMax = max == 0 ? 0 : max - list.length;
+      pageToken = response.nextPageToken;
+    } else {
+      break;
+    }
+  }
+  return list;
 }
