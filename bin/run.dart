@@ -132,10 +132,14 @@ main(List<String> args) async {
     "getViewCount": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
       var id = params["id"];
       if (id == null) return {};
-      VideoListResponse videos = await youtube.videos.list("statistics", id: id);
-      return {
-        "views": videos.items[0].statistics.viewCount
-      };
+      try {
+        VideoListResponse videos = await youtube.videos.list("statistics", id: id);
+        return {
+          "views": videos.items[0].statistics.viewCount
+        };
+      } catch (e) {
+        return {};
+      }
     }),
     "getChannelPlaylists": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
       if (params["channel"] == null) [];
