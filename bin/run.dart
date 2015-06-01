@@ -15,19 +15,53 @@ main(List<String> args) async {
   youtube = new YoutubeApi(googleAuthClient);
 
   link = new LinkProvider(args, "YouTube-", command: "run", defaultNodes: {
-    "Get_Channel_Videos": {
-      r"$name": "Get Channel Videos",
-      r"$is": "getChannelVideos",
+    "Search_Videos": {
+      r"$name": "Search Videos",
+      r"$is": "searchVideos",
       r"$invokable": "read",
       r"$params": [
         {
-          "name": "channel",
+          "name": "query",
+          "type": "string"
+        },
+        {
+          "name": "channelId",
           "type": "string"
         },
         {
           "name": "max",
           "type": "number",
           "default": 20
+        },
+        {
+          "name": "order",
+          "type": buildEnumType([
+            "relevance",
+            "date",
+            "rating",
+            "title",
+            "videoCount",
+            "viewCount"
+          ]),
+          "default": "relevance"
+        },
+        {
+          "name": "dimension",
+          "type": buildEnumType([
+            "any",
+            "2d",
+            "3d"
+          ]),
+          "default": "any"
+        },
+        {
+          "name": "definition",
+          "type": buildEnumType([
+            "any",
+            "high",
+            "standard"
+          ]),
+          "default": "any"
         }
       ],
       r"$result": "table",
@@ -51,6 +85,26 @@ main(List<String> args) async {
         {
           "name": "published",
           "type": "string"
+        },
+        {
+          "name": "url",
+          "type": "string"
+        },
+        {
+          "name": "channelId",
+          "type": "string"
+        },
+        {
+          "name": "channelTitle",
+          "type": "string"
+        },
+        {
+          "name": "liveBroadcastContent",
+          "type": buildEnumType([
+            "none",
+            "live",
+            "upcoming"
+          ])
         }
       ]
     },
@@ -111,14 +165,22 @@ main(List<String> args) async {
       ]
     }
   }, profiles: {
-    "getChannelVideos": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
-      if (params["channel"] == null) [];
-
+    "searchVideos": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
       List<SearchResult> results;
       try {
-        results = await getChannelVideos(params["channel"], params["max"]);
-      } catch (e) {
-        return [];
+        results = await getVideos(
+            params["max"],
+            params["order"],
+            channel: params["channelId"],
+            query: params["query"],
+            definition: params["definition"],
+            dimension: params["dimension"]
+        );
+      } catch (e, stack) {
+        return {
+          "error": e.toString(),
+          "stacktrace": stack.toString()
+        };
       }
 
       return results.map((SearchResult it) => {
@@ -126,7 +188,11 @@ main(List<String> args) async {
         "title": it.snippet.title,
         "description": it.snippet.description,
         "thumbnail": it.snippet.thumbnails.default_.url,
-        "published": it.snippet.publishedAt.toString()
+        "published": it.snippet.publishedAt.toString(),
+        "url": "https://www.youtube.com/watch?v=${it.id.videoId}",
+        "channelId": it.snippet.channelId,
+        "channelTitle": it.snippet.channelTitle,
+        "liveBroadcastContent": it.snippet.liveBroadcastContent
       });
     }),
     "getViewCount": (String path) => new SimpleActionNode(path, (Map<String, dynamic> params) async {
@@ -184,7 +250,27 @@ Future<List<Playlist>> getChannelPlaylists(String channel, int max) async {
   return list;
 }
 
-Future<List<SearchResult>> getChannelVideos(String channel, int max) async {
+Future<List<SearchResult>> getVideos(int max, String order, {String channel, String query, String dimension, String definition}) async {
+  if (order == null) {
+    order = "relevance";
+  }
+
+  if (dimension == "any") {
+    dimension = null;
+  }
+
+  if (definition == "any") {
+    definition = null;
+  }
+
+  if (query != null && query.isEmpty) {
+    query = null;
+  }
+
+  if (channel != null && channel.isEmpty) {
+    channel = null;
+  }
+
   if (max == null) max = 0;
 
   var list = <SearchResult>[];
@@ -192,7 +278,17 @@ Future<List<SearchResult>> getChannelVideos(String channel, int max) async {
   String pageToken;
   int currentMax = max;
   while (true) {
-    response = await youtube.search.list("snippet,id", channelId: channel, maxResults: currentMax == 0 ? null : currentMax, pageToken: pageToken, type: "youtube#video");
+    response = await youtube.search.list(
+        "snippet,id",
+        channelId: channel,
+        q: query,
+        order: order,
+        maxResults: currentMax == 0 ? null : currentMax,
+        pageToken: pageToken,
+        type: "youtube#video",
+        videoDimension: dimension,
+        videoDefinition: definition
+    );
     list.addAll(response.items);
     if ((currentMax == 0 || list.length < max) && response.nextPageToken != null) {
       currentMax = max == 0 ? 0 : max - list.length;
