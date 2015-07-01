@@ -31,7 +31,7 @@ main(List<String> args) async {
         {
           "name": "max",
           "type": "number",
-          "default": 20
+          "default": 30
         },
         {
           "name": "order",
